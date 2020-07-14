@@ -26,7 +26,8 @@ let PKMTypes: [String:Color] = [
     "grass": Color("Grass"),
     "poison": Color("Poison"),
     "rock": Color("Rock"),
-    "water": Color("Water")
+    "water": Color("Water"),
+    "ice": Color("Ice")
 ]
 
 struct TypeView: View {
