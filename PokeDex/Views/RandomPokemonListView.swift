@@ -19,12 +19,13 @@ struct RandomPokemonListView: View {
             VStack(alignment: .center){
                 ForEach(listModel.totalPokemon, id:\.id){ pokemon in
                     PokemonView(pkmInfo: pokemon)
-                        .onAppear {
-                            if pokemon.id == listModel.totalPokemon.last?.id {
-                                listModel.loadRandomPKM(10)
-                                print("At bottom \(pokemon.id)")
-                            }
-                        }
+                    // Infinite list doesn't work...just crashes
+//                        .onAppear {
+//                            if pokemon.id == listModel.totalPokemon.last?.id {
+//                                listModel.loadRandomPKM(10)
+//                                print("At bottom \(pokemon.id)")
+//                            }
+//                        }
                 }
             }
         }

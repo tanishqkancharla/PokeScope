@@ -30,40 +30,26 @@ var cancellables = Set<AnyCancellable>()
 struct Provider: IntentTimelineProvider {
     
     public func snapshot(for configuration: ConfigurationIntent, with context: Context, completion: @escaping (SimpleEntry) -> ()) {
-        let viewModel = RandomPokemonWidgetModel(PokemonInfo(pokemon: bulbasaurData))
+        let viewModel = bulbasaur()
         let entry = SimpleEntry(date: Date(), configuration: configuration, viewModel: viewModel)
-        completion(entry)
+        viewModel.load {
+            completion(entry)
+        }
     }
 
     public func timeline(for configuration: ConfigurationIntent, with context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
+        // Request a new timeline every `timeInterval`
         let timeInterval: Double = 15
-        let viewModel = RandomPokemonWidgetModel(PokemonInfo(pokemon: bulbasaurData))
+        // Initialize a random pokemon
+        let viewModel = RandomPokemonWidgetModel()
         let entries: [SimpleEntry] = [SimpleEntry(date: Date(), configuration: configuration, viewModel: viewModel)]
         let timeline = Timeline(entries: entries, policy: .after(
                                     Date(timeIntervalSinceNow:timeInterval)))
-        viewModel.loadSprite {
+        viewModel.load {
             completion(timeline)
         }
         
-//        api.pokemonService.fetchPokemon(Int.random(in: pokemonRange)) { result in
-//            switch result {
-//            case .failure(let error):
-//                print(error)
-//                let defaultPkm = PokemonInfo(pokemon: bulbasaurData)
-//                let entries: [SimpleEntry] = [SimpleEntry(date: Date(), configuration: configuration, pkmInfo: defaultPkm)]
-//                let timeline = Timeline(entries: entries, policy: .after(
-//                                            Date(timeIntervalSinceNow:timeInterval)))
-//                completion(timeline)
-//            case .success(let pokemon):
-//                let pkmInfo = PokemonInfo(pokemon: pokemon)
-//                let entries = [SimpleEntry(date: Date(), configuration: configuration, pkmInfo: pkmInfo)]
-//                let timeline = Timeline(entries: entries, policy: .after(
-//                                            Date(timeIntervalSinceNow:timeInterval)))
-//                completion(timeline)
-//
-//            }
-//
-//        }
+    
        
     }
 }
@@ -82,42 +68,95 @@ class SimpleEntry: TimelineEntry {
 
 struct PlaceholderView : View {
     var body: some View {
-        Text("Placeholder view")
+        Text("Loading...")
     }
 }
 
-struct PokemonSpriteWidgetView: View {
-    @ObservedObject var viewModel: RandomPokemonWidgetModel
-    let size: Float
-    
-    var body: some View {
-        VStack{
-            if (viewModel.sprite == nil) {
-                Image(systemName: "exclamationmark")
-                    .frame(width: CGFloat(size), height: CGFloat(size))
-            } else {
-                viewModel.sprite!
-                    .resizable()
-                    .renderingMode(.original)
-                    .frame(width: CGFloat(size), height: CGFloat(size))
-            }
-        }
-    }
-}
-
-struct RandomPokemonWidgetEntryView : View {
+struct RandomPokemonWidgetContainerView : View {
     var entry: Provider.Entry
     
-    @ObservedObject var viewModel: RandomPokemonWidgetModel
+    @Environment(\.widgetFamily) var family
+
+    @ViewBuilder
+    var body: some View {
+        switch family {
+        case .systemSmall:
+            RandomPokemonWidgetSmallView(viewModel: entry.viewModel)
+        case .systemMedium:
+            RandomPokemonWidgetMediumView(viewModel: entry.viewModel)
+        case .systemLarge:
+            RandomPokemonWidgetLargeView(viewModel: entry.viewModel)
+        @unknown default:
+            RandomPokemonWidgetSmallView(viewModel: entry.viewModel)
+        }
+        
+        
+    }
+}
+
+struct RandomPokemonWidgetSmallView : View {
+    var viewModel: RandomPokemonWidgetModel
 
     var body: some View {
-        HStack{
-            PokemonSpriteWidgetView(viewModel: viewModel, size: 100)
-            PokemonBasicView(pkmInfo: viewModel.pkmInfo)
+        ZStack {
+            Color(UIColor.secondarySystemBackground)
+            VStack(spacing: 0) {
+                SpriteWidgetView(viewModel: viewModel, size: 120)
+                    .padding(.top)
+                PokemonBasicWidgetView(viewModel: viewModel, showStats: false)
+                    .offset(y: -15)
+            }
+            .padding()
         }
         
     }
 }
+
+struct RandomPokemonWidgetMediumView : View {
+    var viewModel: RandomPokemonWidgetModel
+
+    var body: some View {
+        ZStack {
+            Color(UIColor.secondarySystemBackground)
+            HStack(spacing: 0) {
+                VStack {
+                    SpriteWidgetView(viewModel: viewModel, size: 100)
+                    EvolutionChainWidgetView(viewModel: viewModel)
+                        .offset(y: -15)
+                }
+                .padding(.vertical)
+                PokemonBasicWidgetView(viewModel: viewModel, showStats: true)
+                    .padding([.top, .leading, .bottom])
+            }
+        }
+        
+    }
+}
+
+struct RandomPokemonWidgetLargeView : View {
+    var viewModel: RandomPokemonWidgetModel
+
+    var body: some View {
+        ZStack {
+            Color(UIColor.secondarySystemBackground)
+            VStack {
+                HStack(spacing: 0) {
+                    VStack {
+                        SpriteWidgetView(viewModel: viewModel, size: 100)
+                        EvolutionChainWidgetView(viewModel: viewModel)
+                            .offset(y: -15)
+                    }
+                    PokemonBasicWidgetView(viewModel: viewModel, showStats: true)
+                        .padding(.leading)
+                }
+                FlavorTextWidgetView(viewModel: viewModel)
+                    .padding()
+            }
+        }
+        
+    }
+}
+
 
 @main
 struct RandomPokemonWidget: Widget {
@@ -125,14 +164,10 @@ struct RandomPokemonWidget: Widget {
 
     public var body: some WidgetConfiguration {
         IntentConfiguration(kind: kind, intent: ConfigurationIntent.self, provider: Provider(), placeholder: PlaceholderView()) { entry in
-            RandomPokemonWidgetEntryView(entry: entry, viewModel: entry.viewModel)
-                .onAppear {
-                    print("Widget has appeared")
-                }
+            RandomPokemonWidgetContainerView(entry: entry)
         }
         .configurationDisplayName("Random Pokemon Widget")
         .description("This is a widget that shows you a new random pokemon every day")
-        .supportedFamilies([.systemMedium])
     }
 }
 
@@ -143,12 +178,31 @@ struct RandomPokemonWidget_Previews: PreviewProvider {
 //        RandomPokemonWidgetEntryView(entry: SimpleEntry(date: Date(), configuration: ConfigurationIntent()))
 //            .previewContext(WidgetPreviewContext(family: .systemSmall))
         Group {
-            PokemonView(pkmInfo: PokemonInfo(pokemon: bulbasaurData))
-                .previewContext(WidgetPreviewContext(family: .systemMedium))
-                .environment(\.colorScheme, .dark)
-            PokemonView(pkmInfo: PokemonInfo(pokemon: bulbasaurData))
-                .previewContext(WidgetPreviewContext(family: .systemMedium))
-                .environment(\.colorScheme, .light)
+            Group {
+                RandomPokemonWidgetSmallView(viewModel: bulbasaur())
+                    .previewContext(WidgetPreviewContext(family: .systemSmall))
+                    .environment(\.colorScheme, .dark)
+                RandomPokemonWidgetSmallView(viewModel: bulbasaur())
+                    .previewContext(WidgetPreviewContext(family: .systemSmall))
+                    .environment(\.colorScheme, .light)
+            }
+            Group {
+                RandomPokemonWidgetMediumView(viewModel: bulbasaur())
+                    .previewContext(WidgetPreviewContext(family: .systemMedium))
+                    .environment(\.colorScheme, .dark)
+                RandomPokemonWidgetMediumView(viewModel: bulbasaur())
+                    .previewContext(WidgetPreviewContext(family: .systemMedium))
+                    .environment(\.colorScheme, .light)
+            }
+            Group{
+                RandomPokemonWidgetLargeView(viewModel: bulbasaur())
+                    .previewContext(WidgetPreviewContext(family: .systemLarge))
+                    .environment(\.colorScheme, .dark)
+                RandomPokemonWidgetLargeView(viewModel: bulbasaur())
+                    .previewContext(WidgetPreviewContext(family: .systemLarge))
+                    .environment(\.colorScheme, .light)
+            }
+            
         }
     }
 }
