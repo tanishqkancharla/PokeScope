@@ -39,7 +39,7 @@ struct Provider: IntentTimelineProvider {
 
     public func timeline(for configuration: ConfigurationIntent, with context: Context, completion: @escaping (Timeline<Entry>) -> ()) {
         // Request a new timeline every `timeInterval`
-        let timeInterval: Double = 15
+        let timeInterval: Double = 60*60*24
         // Initialize a random pokemon
         let viewModel = RandomPokemonWidgetModel()
         let entries: [SimpleEntry] = [SimpleEntry(date: Date(), configuration: configuration, viewModel: viewModel)]
