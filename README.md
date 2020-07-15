@@ -16,3 +16,4 @@ TODO:
 * Search functionality in app
 * Better evolution graphic in case of complicated evolutions like Eevee
 * Show statistics in large-style widget since there's a lot of empty space
+* Get pokemon from official pokedex images rather than sprites. They are available at `https://assets.pokemon.com/assets/cms2/img/pokedex/full/\(id).png`
